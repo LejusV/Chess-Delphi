@@ -81,7 +81,8 @@ end;
 
 constructor TChessCell.Create(Owner : TComponent);
 begin
-  TShape.Create(Owner);
+  inherited Create(Owner);
+  
   self.Width := 96;
   self.Height := 96;
   self.Shape := stRectangle;
