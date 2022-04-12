@@ -7,44 +7,49 @@ uses
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls;
 
 type
+
+  // Classe Cellule dérivée de TShape
   TChessCell = class(TShape)
   published  
     procedure CellCoordsDisplay(Sender: TObject);
 
   public
     { D�clarations publiques }
-    constructor Create(Owner : TComponent); override;
+    constructor Create(Owner : TComponent);
   end;
 
   TCellsArr = array[0..63] of TChessCell;
 
+  // Classe Plateau
   TChessBoard = class
   private
     { D�clarations priv�es }
     _cells : TCellsArr;
     function GetCell(Col : Char; Row : Integer): TChessCell;
-    procedure SetCell(Col : Char; Row : Integer; const Value: TChessCell);
+    procedure SetCell(Col : Char; Row : Integer; const Value: TChessCell); // Setter de Value : TChessCell à un emplacement du plateau
 
-    function GetBoardSize : Integer;
+    function GetBoardSize : Integer; // Retourne la taille du plateau
 
   public
     { D�clarations publiques }
-    property Cell[Col : Char; Row : Integer]: TChessCell read GetCell write SetCell; default;
-    property Size : Integer read GetBoardSize;
+    property Cell[Col : Char; Row : Integer]: TChessCell read GetCell write SetCell; default; // Accesseur de la cellule
+    property Size : Integer read GetBoardSize; // Taille du plateau
   end;
 
+  
+  // Classe Fenêtre de Jeu dérivée de TForm
   TChessForm = class(TForm)
-    procedure GenerateBoard(Sender: TObject);
-    procedure DestroyBoard(Sender: TObject);
+    procedure GenerateBoard(Sender: TObject); // Génération du plateau
+    procedure DestroyBoard(Sender: TObject); // Destruction du plateau
   strict private
     { D�clarations priv�es }
-    _lblCellIndicator: TLabel;
-    _board: TChessBoard;
-    _boardOutline: TShape;
+    _lblCellIndicator: TLabel; // Label indiquant les coordonnées de la cellule sélectionnée
+    _board: TChessBoard; // Plateau de jeu
+    _boardOutline: TShape; // Contour du plateau
   public
     { D�clarations publiques }
-    property Board: TChessBoard read _board;
-    property CellIndicator : TLabel read _lblCellIndicator;
+    property Board: TChessBoard read _board; // Accès au plateau de jeu
+    property CellIndicator : TLabel read _lblCellIndicator; // Accès au label indiquant les coordonnées de la cellule sélectionnée
   end;
 
 
@@ -54,7 +59,6 @@ type
 
 
 var
-  {FormTotalementInutilePourQueLeCompilateurArreteDeMeCrierDessus : TfrmGame;}
   ChessForm: TChessForm;
 
 implementation
@@ -81,7 +85,7 @@ end;
 
 constructor TChessCell.Create(Owner : TComponent);
 begin
-  TShape.Create(Owner);
+  inherited Create(Owner);
   self.Width := 96;
   self.Height := 96;
   self.Shape := stRectangle;
