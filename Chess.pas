@@ -7,173 +7,152 @@ uses
   Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls;
 
 type
-  TfrmGame = class(TForm)
-    sqrCell_A2: TShape;
-    sqrCell_A3: TShape;
-    sqrCell_A4: TShape;
-    sqrCell_A5: TShape;
-    sqrCell_A6: TShape;
-    sqrCell_A7: TShape;
-    sqrCell_A8: TShape;
-    sqrCell_A1: TShape;
-    sqrCell_B2: TShape;
-    sqrCell_B3: TShape;
-    sqrCell_B4: TShape;
-    sqrCell_B5: TShape;
-    sqrCell_B6: TShape;
-    sqrCell_B7: TShape;
-    sqrCell_B8: TShape;
-    sqrCell_B1: TShape;
-    sqrCell_C2: TShape;
-    sqrCell_C3: TShape;
-    sqrCell_C4: TShape;
-    sqrCell_C5: TShape;
-    sqrCell_C6: TShape;
-    sqrCell_C7: TShape;
-    sqrCell_C8: TShape;
-    sqrCell_C1: TShape;
-    sqrCell_D2: TShape;
-    sqrCell_D3: TShape;
-    sqrCell_D4: TShape;
-    sqrCell_D5: TShape;
-    sqrCell_D6: TShape;
-    sqrCell_D7: TShape;
-    sqrCell_D8: TShape;
-    sqrCell_D1: TShape;
-    sqrCell_E1: TShape;
-    sqrCell_E8: TShape;
-    sqrCell_E7: TShape;
-    sqrCell_E6: TShape;
-    sqrCell_E5: TShape;
-    sqrCell_E4: TShape;
-    sqrCell_E3: TShape;
-    sqrCell_E2: TShape;
-    sqrCell_F1: TShape;
-    sqrCell_F8: TShape;
-    sqrCell_F7: TShape;
-    sqrCell_F6: TShape;
-    sqrCell_F5: TShape;
-    sqrCell_F4: TShape;
-    sqrCell_F3: TShape;
-    sqrCell_F2: TShape;
-    sqrCell_G1: TShape;
-    sqrCell_G8: TShape;
-    sqrCell_G7: TShape;
-    sqrCell_G6: TShape;
-    sqrCell_G5: TShape;
-    sqrCell_G4: TShape;
-    sqrCell_G3: TShape;
-    sqrCell_G2: TShape;
-    sqrCell_H1: TShape;
-    sqrCell_H8: TShape;
-    sqrCell_H7: TShape;
-    sqrCell_H6: TShape;
-    sqrCell_H5: TShape;
-    sqrCell_H4: TShape;
-    sqrCell_H3: TShape;
-    sqrCell_H2: TShape;
-    Label1: TLabel;
+  TChessCell = class(TShape)
+  published  
+    procedure CellCoordsDisplay(Sender: TObject);
 
-    procedure GenerateSet(Sender: TObject);
-    procedure DestroySet(Sender: TObject);
-  strict private
-    { D�clarations priv�es }
-    fCellsList: TObjectList<TShape>;
   public
     { D�clarations publiques }
-    property Cells : TObjectList<TShape> read fCellsList;
+    constructor Create(Owner : TComponent); override;
   end;
 
+  TCellsArr = array[0..63] of TChessCell;
+
+  TChessBoard = class
+  private
+    { D�clarations priv�es }
+    _cells : TCellsArr;
+    function GetCell(Col : Char; Row : Integer): TChessCell;
+    procedure SetCell(Col : Char; Row : Integer; const Value: TChessCell);
+
+    function GetBoardSize : Integer;
+
+  public
+    { D�clarations publiques }
+    property Cell[Col : Char; Row : Integer]: TChessCell read GetCell write SetCell; default;
+    property Size : Integer read GetBoardSize;
+  end;
+
+  TChessForm = class(TForm)
+    procedure GenerateBoard(Sender: TObject);
+    procedure DestroyBoard(Sender: TObject);
+  strict private
+    { D�clarations priv�es }
+    _lblCellIndicator: TLabel;
+    _board: TChessBoard;
+    _boardOutline: TShape;
+  public
+    { D�clarations publiques }
+    property Board: TChessBoard read _board;
+    property CellIndicator : TLabel read _lblCellIndicator;
+  end;
+
+
+
+
+
+
+
 var
-  frmGame: TfrmGame;
+  {FormTotalementInutilePourQueLeCompilateurArreteDeMeCrierDessus : TfrmGame;}
+  ChessForm: TChessForm;
 
 implementation
 
 {$R *.dfm}
-
-procedure TfrmGame.DestroySet(Sender: TObject);
+{ TChessBoard }
+function TChessBoard.GetCell(Col : Char; Row : Integer): TChessCell;
 begin
-  fCellsList.free;
+  Result := _cells[(Ord(Col) - Ord('A')) + (Row - 1) * 8];
 end;
 
-procedure TfrmGame.GenerateSet(Sender: TObject);
+procedure TChessBoard.SetCell(Col : Char; Row : Integer; const Value: TChessCell);
+begin
+  _cells[(Ord(Col) - Ord('A')) + (Row - 1) * 8] := Value;
+end;
+
+function TChessBoard.GetBoardSize: Integer;
+begin
+  Result := Length(_cells);
+end;
+
+
+{ TChessCell }
+
+constructor TChessCell.Create(Owner : TComponent);
+begin
+  TShape.Create(Owner);
+  self.Width := 96;
+  self.Height := 96;
+  self.Shape := stRectangle;
+  self.Pen.Color := RGB(66, 31, 0);
+  self.Tag := 0;
+  OnMouseEnter := CellCoordsDisplay;
+end;
+
+procedure TChessCell.CellCoordsDisplay(Sender: TObject);
+begin
+  ChessForm.CellIndicator.Caption := 'Cell ' + (Ord('A') + (TChessCell(Sender).Tag - 1) mod 8).ToString + (((TChessCell(Sender).Tag - 1) div 8) + 1).ToString;
+end;
+
+
+{ TChessForm }
+
+procedure TChessForm.DestroyBoard(Sender: TObject);
+begin
+  //
+end;
+
+procedure TChessForm.GenerateBoard(Sender: TObject);
 var
-  i: Integer;
+  col, row: Integer;
+  sqrCell: TChessCell;
+  lbl: TLabel;
 begin
-  fcellsList.Create;
-  fcellsList.Add(sqrCell_A1);
-  fcellsList.Add(sqrCell_A2);
-  fcellsList.Add(sqrCell_A3);
-  fcellsList.Add(sqrCell_A4);
-  fcellsList.Add(sqrCell_A5);
-  fcellsList.Add(sqrCell_A6);
-  fcellsList.Add(sqrCell_A7);
-  fcellsList.Add(sqrCell_A8);
-  fcellsList.Add(sqrCell_B1);
-  fcellsList.Add(sqrCell_B2);
-  fcellsList.Add(sqrCell_B3);
-  fcellsList.Add(sqrCell_B4);
-  fcellsList.Add(sqrCell_B5);
-  fcellsList.Add(sqrCell_B6);
-  fcellsList.Add(sqrCell_B7);
-  fcellsList.Add(sqrCell_B8);
-  fcellsList.Add(sqrCell_C1);
-  fcellsList.Add(sqrCell_C2);
-  fcellsList.Add(sqrCell_C3);
-  fcellsList.Add(sqrCell_C4);
-  fcellsList.Add(sqrCell_C5);
-  fcellsList.Add(sqrCell_C6);
-  fcellsList.Add(sqrCell_C7);
-  fcellsList.Add(sqrCell_C8);
-  fcellsList.Add(sqrCell_D1);
-  fcellsList.Add(sqrCell_D2);
-  fcellsList.Add(sqrCell_D3);
-  fcellsList.Add(sqrCell_D4);
-  fcellsList.Add(sqrCell_D5);
-  fcellsList.Add(sqrCell_D6);
-  fcellsList.Add(sqrCell_D7);
-  fcellsList.Add(sqrCell_D8);
-  fcellsList.Add(sqrCell_E1);
-  fcellsList.Add(sqrCell_E2);
-  fcellsList.Add(sqrCell_E3);
-  fcellsList.Add(sqrCell_E4);
-  fcellsList.Add(sqrCell_E5);
-  fcellsList.Add(sqrCell_E6);
-  fcellsList.Add(sqrCell_E7);
-  fcellsList.Add(sqrCell_E8);
-  fcellsList.Add(sqrCell_F1);
-  fcellsList.Add(sqrCell_F2);
-  fcellsList.Add(sqrCell_F3);
-  fcellsList.Add(sqrCell_F4);
-  fcellsList.Add(sqrCell_F5);
-  fcellsList.Add(sqrCell_F6);
-  fcellsList.Add(sqrCell_F7);
-  fcellsList.Add(sqrCell_F8);
-  fcellsList.Add(sqrCell_G1);
-  fcellsList.Add(sqrCell_G2);
-  fcellsList.Add(sqrCell_G3);
-  fcellsList.Add(sqrCell_G4);
-  fcellsList.Add(sqrCell_G5);
-  fcellsList.Add(sqrCell_G6);
-  fcellsList.Add(sqrCell_G7);
-  fcellsList.Add(sqrCell_G8);
-  fcellsList.Add(sqrCell_H1);
-  fcellsList.Add(sqrCell_H2);
-  fcellsList.Add(sqrCell_H3);
-  fcellsList.Add(sqrCell_H4);
-  fcellsList.Add(sqrCell_H5);
-  fcellsList.Add(sqrCell_H6);
-  fcellsList.Add(sqrCell_H7);
-  fcellsList.Add(sqrCell_H8);
-
-  i := 0;
-  while i < fcellsList.Count - 1 do
+  _lblCellIndicator := TLabel.Create(self);
+  _lblCellIndicator.Left := 0;
+  _lblCellIndicator.Top := 0;
+  _lblCellIndicator.Width := 4;
+  _lblCellIndicator.Height := 16;
+  _lblCellIndicator.Font.Charset := DEFAULT_CHARSET;
+  _lblCellIndicator.Font.Color := clWhite;
+  _lblCellIndicator.Font.Height := -13;
+  _lblCellIndicator.Font.Name := 'Tahoma';
+  _lblCellIndicator.Font.Style := [];
+  _lblCellIndicator.ParentFont := False;
+  for col := Ord('A') to Ord('H') do
   begin
-    fcellsList[i].Brush.Color := RGB(210, 206, 176) {11587282};
-    fcellsList[i + 1].Brush.Color := RGB(160, 137, 65) {4295072};
-    i := i + 2;
+    for row := 1 to 8 do
+    begin
+      sqrCell := TChessCell.Create(self);
+      sqrCell.Parent := self;
+      sqrCell.Left := (col - Ord('A')) * 96 + 48;
+      sqrCell.Top := (row - 1) * 96 + 48;{
+      sqrCell.Width := 96;
+      sqrCell.Height := 96;
+      sqrCell.Shape := stRectangle;
+      sqrCell.Pen.Color := RGB(66, 31, 0);}
+      sqrCell.Tag := (col - Ord('A')) + (row - 1) * 8;{
+      OnMouseEnter := GetCellCoords;}
+      if ((col - Ord('A')) mod 2 = 0) and (row - 1 mod 2 = 0) then
+        sqrCell.Brush.Color := RGB(210, 206, 176)
+      else
+        sqrCell.Brush.Color := RGB(160, 137, 65);
+      _board[Chr(col), row] := sqrCell;
+    end;
   end;
-  Label1.Caption := IntToStr(fcellsList.Count);
+  _lblCellIndicator.Caption := IntToStr(_board.Size) + ' cells';
+
+  _boardOutline := TShape.Create(self);
+  _boardOutline.Parent := self;
+  _boardOutline.Left := 45;
+  _boardOutline.Top := 45;
+  _boardOutline.Width := 774;
+  _boardOutline.Height := 774;
+  _boardOutline.Shape := stRectangle;
+  _boardOutline.Brush.Style := bsClear;
+  _boardOutline.Pen.Color := RGB(66, 29, 0);
+  _boardOutline.Pen.Width := 3;
 end;
 
- end.
+end.
