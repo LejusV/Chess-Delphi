@@ -4,7 +4,7 @@ interface
 
 {$REGION 'Used Units'}
   uses
-    Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, System.Generics.Collections, Vcl.Graphics,
+    Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, System.Generics.Collections, System.Math, Vcl.Graphics,
     Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls,
   Vcl.Imaging.pngimage;
 
@@ -164,7 +164,7 @@ interface
       procedure GenerateBoard(Sender: TObject); // Génération du plateau
       procedure DestroyBoard(Sender: TObject);
     procedure FormResize(Sender: TObject); // Destruction du plateau
-    private
+    strict private
       { D�clarations priv�es }
       fLblCellIndicator: TLabel; // Label indiquant les coordonnées de la cellule sélectionnée
       fBoard: TChessBoard; // Plateau de jeu
@@ -201,7 +201,7 @@ implementation
     
     procedure TChessCell.CellCoordsDisplay(Sender: TObject);
     begin
-      ChessForm.fLblCellIndicator.Caption := Char(Ord('A') + (Self.Tag) mod 8) + IntToStr(8 - (Self.Tag) div 8);
+      ChessForm.CellIndicator.Caption := Char(Ord('A') + (Self.Tag) mod 8) + IntToStr(8 - (Self.Tag) div 8);
     end;
     
     constructor TChessCell.Create(Owner : TComponent);
@@ -305,7 +305,7 @@ implementation
       else
         Self.Unselect;
       if ChessForm.FocusedPiece <> nil then
-        ChessForm.CellIndicator.Caption := IntToStr(ChessForm.FocusedPiece.fCell.Tag) + ' ' + IntToStr(Ord(ChessForm.FocusedPiece.fIsFocused))
+        ChessForm.CellIndicator.Caption := IntToStr(ChessForm.FocusedPiece.Cell.Tag) + ' ' + IntToStr(Ord(ChessForm.FocusedPiece.fIsFocused))
       else
         ChessForm.CellIndicator.Caption := Self.fIsFocused.ToString;
     end;
@@ -364,8 +364,8 @@ implementation
     begin
       Self.Cell.Piece := nil;
       Self.Cell := ChessForm.Board[CellTag];
-      if (ChessForm.fBoard[CellTag].Piece <> nil) and (Self.Cell.Piece <> Self) then
-        ChessForm.fBoard[CellTag].Piece.Free;
+      if (ChessForm.Board[CellTag].Piece <> nil) and (Self.Cell.Piece <> Self) then
+        ChessForm.Board[CellTag].Piece.Free;
       Self.Cell.Piece := Self;
       Self.Left := Self.cell.Left + (Self.cell.Width - Self.Width) div 2;
       Self.Top := Self.cell.Top + (Self.cell.Height - Self.Height) div 2;
@@ -496,7 +496,38 @@ implementation
     begin
       if PossibleMoves <> nil then
       begin
-        // TODO
+        // Check en Col+2 Ligne+1
+        if ((Self.Cell.Tag mod 8) < 6) and (Self.Cell.Tag + 8 + 2 < 64) 
+          and not ((Board[Self.Cell.Tag + 8 + 2].Piece <> nil) and (Board[Self.Cell.Tag + 8 + 2].Piece.Color = Self.fColor)) then
+            PossibleMoves.Add(ChessForm.Board[Self.Cell.Tag + 8 + 2]);
+        // Check en Col-2 Ligne+1
+        if ((Self.Cell.Tag mod 8) > 1) and (Self.Cell.Tag + 8 - 2 < 64)
+          and not ((Board[Self.Cell.Tag + 8 - 2].Piece <> nil) and (Board[Self.Cell.Tag + 8 - 2].Piece.Color = Self.fColor)) then
+          PossibleMoves.Add(Board[Self.Cell.Tag + 8 - 2]);
+        // Check en Col+2 Ligne-1
+        if ((Self.Cell.Tag mod 8) < 6) and (Self.Cell.Tag - 8 + 2 >= 0)
+          and not ((Board[Self.Cell.Tag - 8 + 2].Piece <> nil) and (Board[Self.Cell.Tag - 8 + 2].Piece.Color = Self.fColor)) then
+          PossibleMoves.Add(Board[Self.Cell.Tag - 8 + 2]);
+        // Check en Col-2 Ligne-1
+        if ((Self.Cell.Tag mod 8) > 1) and (Self.Cell.Tag - 8 - 2 >= 0)
+          and not ((Board[Self.Cell.Tag - 8 - 2].Piece <> nil) and (Board[Self.Cell.Tag - 8 - 2].Piece.Color = Self.fColor)) then
+          PossibleMoves.Add(Board[Self.Cell.Tag - 8 - 2]);
+        // Check en Col+1 Ligne+2
+        if ((Self.Cell.Tag mod 8) < 7) and (Self.Cell.Tag + 16 + 1 < 64)
+          and not ((Board[Self.Cell.Tag + 16 + 1].Piece <> nil) and (Board[Self.Cell.Tag + 16 + 1].Piece.Color = Self.fColor)) then
+          PossibleMoves.Add(Board[Self.Cell.Tag + 16 + 1]);
+        // Check en Col-1 Ligne+2
+        if ((Self.Cell.Tag mod 8) > 0) and (Self.Cell.Tag + 16 - 1 < 64)
+          and not ((Board[Self.Cell.Tag + 16 - 1].Piece <> nil) and (Board[Self.Cell.Tag + 16 - 1].Piece.Color = Self.fColor)) then
+          PossibleMoves.Add(Board[Self.Cell.Tag + 16 - 1]);
+        // Check en Col+1 Ligne-2
+        if ((Self.Cell.Tag mod 8) < 7) and (Self.Cell.Tag - 16 + 1 >= 0)
+          and not ((Board[Self.Cell.Tag - 16 + 1].Piece <> nil) and (Board[Self.Cell.Tag - 16 + 1].Piece.Color = Self.fColor)) then
+          PossibleMoves.Add(Board[Self.Cell.Tag - 16 + 1]);
+        // Check en Col-1 Ligne-2
+        if ((Self.Cell.Tag mod 8) > 0) and (Self.Cell.Tag - 16 - 1 >= 0)
+          and not ((Board[Self.Cell.Tag - 16 - 1].Piece <> nil) and (Board[Self.Cell.Tag - 16 - 1].Piece.Color = Self.fColor)) then
+          PossibleMoves.Add(Board[Self.Cell.Tag - 16 - 1]);
       end;
     end;
   
@@ -521,7 +552,37 @@ implementation
     begin
       if PossibleMoves <> nil then
       begin
-        // TODO
+        // Check en diagonale vers le Haut-Gauche
+        i := Self.Cell.Tag;
+        while ((i mod 8) <> 0) and ((i div 8) <> 0) do
+          i := i - 9;
+        CheckPossibleMovesOnStraightLine(PossibleMoves, Self.Cell.Tag, -9, i);
+          // Décrémentation de 9 entre chaque case pour atteindre celle juste en haut à gauche
+          // Dernière case à vérifier = Case colonne de la pièce et 1ère ligne - numéro de la ligne de la pièce
+    
+        // Check en diagonale vers le Haut-Droite
+        i := Self.Cell.Tag;
+        while ((i mod 8) <> 7) and ((i div 8) <> 0) do
+          i := i - 7;
+        CheckPossibleMovesOnStraightLine(PossibleMoves, Self.Cell.Tag, -7, i);
+          // Décrémentation de 9 entre chaque case pour atteindre celle juste en haut à gauche
+          // Dernière case à vérifier = Case colonne de la pièce et 1ère ligne - numéro de la ligne de la pièce
+    
+        // Check en diagonale vers le Bas-Gauche
+        i := Self.Cell.Tag;
+        while ((i mod 8) <> 0) and ((i div 8) <> 7) do
+          i := i + 7;
+        CheckPossibleMovesOnStraightLine(PossibleMoves, Self.Cell.Tag, 7, i);
+          // Décrémentation de 9 entre chaque case pour atteindre celle juste en haut à gauche
+          // Dernière case à vérifier = Case colonne de la pièce et 1ère ligne - numéro de la ligne de la pièce
+    
+        // Check en diagonale vers le Bas-Droite
+        i := Self.Cell.Tag;
+        while ((i mod 8) <> 7) and ((i div 8) <> 7) do
+          i := i + 9;
+        CheckPossibleMovesOnStraightLine(PossibleMoves, Self.Cell.Tag, 9, i);
+          // Décrémentation de 9 entre chaque case pour atteindre celle juste en haut à gauche
+          // Dernière case à vérifier = Case colonne de la pièce et 1ère ligne - numéro de la ligne de la pièce
       end;
     end;
   
@@ -541,12 +602,41 @@ implementation
   
   
     procedure TChessKing.GetPossibleMoves(Board : TChessBoard; PossibleMoves : TList<TChessCell>);
-    var
-      i : Integer;
     begin
       if PossibleMoves <> nil then
       begin
-        // TODO
+        // Check en Col+1 Ligne+0
+        if ((Self.Cell.Tag mod 8) < 7)
+          and not ((Board[Self.Cell.Tag + 1].Piece <> nil) and (Board[Self.Cell.Tag + 1].Piece.Color = Self.fColor)) then
+          PossibleMoves.Add(Board[Self.Cell.Tag + 1]);
+        // Check en Col-1 Ligne+0
+        if ((Self.Cell.Tag mod 8) > 0)
+          and not ((Board[Self.Cell.Tag - 1].Piece <> nil) and (Board[Self.Cell.Tag - 1].Piece.Color = Self.fColor)) then
+          PossibleMoves.Add(Board[Self.Cell.Tag - 1]);
+        // Check en Col+0 Ligne+1
+        if (Self.Cell.Tag + 8 < 64)
+          and not ((Board[Self.Cell.Tag + 8].Piece <> nil) and (Board[Self.Cell.Tag + 8].Piece.Color = Self.fColor)) then
+          PossibleMoves.Add(Board[Self.Cell.Tag + 8]);
+        // Check en Col+0 Ligne-1
+        if (Self.Cell.Tag - 8 >= 0)
+          and not ((Board[Self.Cell.Tag - 8].Piece <> nil) and (Board[Self.Cell.Tag - 8].Piece.Color = Self.fColor)) then
+          PossibleMoves.Add(Board[Self.Cell.Tag - 8]);
+        // Check en Col+1 Ligne+1
+        if ((Self.Cell.Tag mod 8) < 7) and (Self.Cell.Tag + 8 + 1 < 64)
+          and not ((Board[Self.Cell.Tag + 8 + 1].Piece <> nil) and (Board[Self.Cell.Tag + 8 + 1].Piece.Color = Self.fColor)) then
+          PossibleMoves.Add(Board[Self.Cell.Tag + 8 + 1]);
+        // Check en Col-1 Ligne+1
+        if ((Self.Cell.Tag mod 8) > 0) and (Self.Cell.Tag + 8 - 1 < 64)
+          and not ((Board[Self.Cell.Tag + 8 - 1].Piece <> nil) and (Board[Self.Cell.Tag + 8 - 1].Piece.Color = Self.fColor)) then
+          PossibleMoves.Add(Board[Self.Cell.Tag + 8 - 1]);
+        // Check en Col+1 Ligne-1
+        if ((Self.Cell.Tag mod 8) < 7) and (Self.Cell.Tag - 8 + 1 >= 0)
+          and not ((Board[Self.Cell.Tag - 8 + 1].Piece <> nil) and (Board[Self.Cell.Tag - 8 + 1].Piece.Color = Self.fColor)) then
+          PossibleMoves.Add(Board[Self.Cell.Tag - 8 + 1]);
+        // Check en Col-1 Ligne-1
+        if ((Self.Cell.Tag mod 8) > 0) and (Self.Cell.Tag - 8 - 1 >= 0)
+          and not ((Board[Self.Cell.Tag - 8 - 1].Piece <> nil) and (Board[Self.Cell.Tag - 8 - 1].Piece.Color = Self.fColor)) then
+          PossibleMoves.Add(Board[Self.Cell.Tag - 8 - 1]);
       end;
     end;
   
@@ -571,7 +661,57 @@ implementation
     begin
       if PossibleMoves <> nil then
       begin
-        // TODO
+        // Check en ligne vers le Haut
+        CheckPossibleMovesOnStraightLine(PossibleMoves, Self.Cell.Tag, -8, Self.Cell.Tag mod 8);
+          // Décrémentation de 8 entre chaque case pour atteindre celle juste au dessus
+          // Dernière case à vérifier = Première Case de la première ligne (0) + colonne de la pièce
+    
+        // Check en ligne vers le Bas
+        CheckPossibleMovesOnStraightLine(PossibleMoves, Self.Cell.Tag, 8, 56 + Self.Cell.Tag mod 8 );
+          // Incrémentation de 8 entre chaque case pour atteindre celle juste en dessous
+          // Dernière case à vérifier = Première Case de la dernière ligne (56) + colonne de la pièce
+    
+        // Check en ligne vers la Gauche
+        CheckPossibleMovesOnStraightLine(PossibleMoves, Self.Cell.Tag, -1, (Self.Cell.Tag div 8) * 8 );
+          // Décrémentation de 1 entre chaque case pour atteindre celle juste à gauche
+          // Dernière case à vérifier = Numéro (de 0 à 7) de la ligne * nombre de cases dans une ligne
+    
+        // Check en ligne vers la Droite
+        CheckPossibleMovesOnStraightLine(PossibleMoves, Self.Cell.Tag, 1, ((Self.Cell.Tag div 8) + 1) * 8 - 1 );
+          // Décrémentation de 1 entre chaque case pour atteindre celle juste à gauche
+          // Dernière case à vérifier = Numéro (de 0 à 7) de la ligne du dessous * nombre de cases dans une ligne - 1
+
+        // Check en diagonale vers le Haut-Gauche
+        i := Self.Cell.Tag;
+        while ((i mod 8) <> 0) and ((i div 8) <> 0) do
+          i := i - 9;
+        CheckPossibleMovesOnStraightLine(PossibleMoves, Self.Cell.Tag, -9, i);
+          // Décrémentation de 9 entre chaque case pour atteindre celle juste en haut à gauche
+          // Dernière case à vérifier = Case colonne de la pièce et 1ère ligne - numéro de la ligne de la pièce
+    
+        // Check en diagonale vers le Haut-Droite
+        i := Self.Cell.Tag;
+        while ((i mod 8) <> 7) and ((i div 8) <> 0) do
+          i := i - 7;
+        CheckPossibleMovesOnStraightLine(PossibleMoves, Self.Cell.Tag, -7, i);
+          // Décrémentation de 9 entre chaque case pour atteindre celle juste en haut à gauche
+          // Dernière case à vérifier = Case colonne de la pièce et 1ère ligne - numéro de la ligne de la pièce
+    
+        // Check en diagonale vers le Bas-Gauche
+        i := Self.Cell.Tag;
+        while ((i mod 8) <> 0) and ((i div 8) <> 7) do
+          i := i + 7;
+        CheckPossibleMovesOnStraightLine(PossibleMoves, Self.Cell.Tag, 7, i);
+          // Décrémentation de 9 entre chaque case pour atteindre celle juste en haut à gauche
+          // Dernière case à vérifier = Case colonne de la pièce et 1ère ligne - numéro de la ligne de la pièce
+    
+        // Check en diagonale vers le Bas-Droite
+        i := Self.Cell.Tag;
+        while ((i mod 8) <> 7) and ((i div 8) <> 7) do
+          i := i + 9;
+        CheckPossibleMovesOnStraightLine(PossibleMoves, Self.Cell.Tag, 9, i);
+          // Décrémentation de 9 entre chaque case pour atteindre celle juste en haut à gauche
+          // Dernière case à vérifier = Case colonne de la pièce et 1ère ligne - numéro de la ligne de la pièce
       end;
     end;
   
@@ -620,13 +760,13 @@ implementation
         Self.fProfilePicture.Left := 0;
         Self.fProfilePicture.Top := 0;
 
-        for i := 1 to 6 do
+        for i := 3 to 4 do
         begin
           fPawns.Add(TChessPawn.Create(ChessForm, Color));
-          ChessForm.Board[48 + i].Piece := fPawns[i - 1];
-          fPawns[i - 1].Cell := ChessForm.Board[48 + i];
-          fPawns[i - 1].Left := fPawns[i - 1].Cell.Left + 3;
-          fPawns[i - 1].Top := fPawns[i - 1].Cell.Top + 3;
+          ChessForm.Board[48 + i].Piece := fPawns[i - 3];
+          fPawns[i - 3].Cell := ChessForm.Board[48 + i];
+          fPawns[i - 3].Left := fPawns[i - 3].Cell.Left + 3;
+          fPawns[i - 3].Top := fPawns[i - 3].Cell.Top + 3;
         end;
 
         ChessForm.Board[56].Piece := fRooks[0];
@@ -673,13 +813,13 @@ implementation
         Self.fProfilePicture.Left := 864 - Self.ProfilePicture.Width;
         Self.fProfilePicture.Top := 864 - Self.ProfilePicture.Height;
 
-        for i := 1 to 6 do
+        for i := 3 to 4 do
         begin
           fPawns.Add(TChessPawn.Create(ChessForm, Color));
-          ChessForm.Board[8 + i].Piece := fPawns[i - 1];
-          fPawns[i - 1].Cell := ChessForm.Board[8 + i];
-          fPawns[i - 1].Left := fPawns[i - 1].Cell.Left + 3;
-          fPawns[i - 1].Top := fPawns[i - 1].Cell.Top + 3;
+          ChessForm.Board[8 + i].Piece := fPawns[i - 3];
+          fPawns[i - 3].Cell := ChessForm.Board[8 + i];
+          fPawns[i - 3].Left := fPawns[i - 3].Cell.Left + 3;
+          fPawns[i - 3].Top := fPawns[i - 3].Cell.Top + 3;
         end;
 
         ChessForm.Board[0].Piece := fRooks[0];
