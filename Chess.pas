@@ -389,11 +389,19 @@ implementation
       Self.Cell.Piece := nil;
       Self.Cell := ChessForm.Board[CellTag];
       if (ChessForm.Board[CellTag].Piece <> nil) and (Self.Cell.Piece <> Self) then
-        if Self.Cell.Piece = ChessForm.Player1.King then
-          ChessForm.GameOver(ChessForm.Player2)
-        else if Self.Cell.Piece = ChessForm.Player2.King then
+      begin
+        if ChessForm.Board[CellTag].Piece = ChessForm.Player1.King then
+        begin
+          ChessForm.GameOver(ChessForm.Player2);
+          Exit;
+        end
+        else if  ChessForm.Board[CellTag].Piece = ChessForm.Player2.King then
+        begin
           ChessForm.GameOver(ChessForm.Player1);
+          Exit;
+        end;
         ChessForm.Board[CellTag].Piece.Free;
+      end;
       Self.Cell.Piece := Self;
       Self.Left := Self.cell.Left + (Self.cell.Width - Self.Width) div 2;
       Self.Top := Self.cell.Top + (Self.cell.Height - Self.Height) div 2;
@@ -405,16 +413,16 @@ implementation
         if ChessForm.Player2.IsKingChecked(ChessForm.Player1) then
         begin
           ChessForm.CellIndicator.Caption := 'Player 2 (Checked)';
-          ChessForm.CellIndicator.Color := clRed;
+          ChessForm.CellIndicator.Font.Color := clRed;
           ChessForm.CellIndicator.Left := ChessForm.Width - 168;
-          ChessForm.CellIndicator.Top := 1;
+          ChessForm.CellIndicator.Top := 2;
         end
         else
         begin
           ChessForm.CellIndicator.Caption := 'Player 2';
-          ChessForm.CellIndicator.Color := clWhite;
+          ChessForm.CellIndicator.Font.Color := clWhite;
           ChessForm.CellIndicator.Left := ChessForm.Width - 84;
-          ChessForm.CellIndicator.Top := 1;
+          ChessForm.CellIndicator.Top := 2;
         end;
       end
       else if Self.fColor = clBlack then
@@ -422,9 +430,9 @@ implementation
         ChessForm.Player1.IsTurn := True;
         ChessForm.Player2.IsTurn := False;
         ChessForm.CellIndicator.Caption := 'Player 1';
-        ChessForm.CellIndicator.Color := clWhite;
-        ChessForm.CellIndicator.Left := 1;
-        ChessForm.CellIndicator.Top := ChessForm.ClientHeight - ChessForm.CellIndicator.Height - 1;
+        ChessForm.CellIndicator.Font.Color := clWhite;
+        ChessForm.CellIndicator.Left := 2;
+        ChessForm.CellIndicator.Top := ChessForm.ClientHeight - ChessForm.CellIndicator.Height - 2;
         // Si le roi du joueur 1 est en échec
         if ChessForm.Player1.IsKingChecked(ChessForm.Player2) then
         begin
@@ -1201,7 +1209,7 @@ implementation
       fLblCellIndicator.Height := 16;
       fLblCellIndicator.Font.Charset := DEFAULT_CHARSET;
       fLblCellIndicator.Font.Color := clWhite;
-      fLblCellIndicator.Font.Height := -15;
+      fLblCellIndicator.Font.Height := -17;
       fLblCellIndicator.Font.Name := 'Tahoma';
       fLblCellIndicator.Font.Style := [];
       fLblCellIndicator.ParentFont := False;
@@ -1236,9 +1244,17 @@ implementation
     procedure TChessForm.GameOver(Winner : TChessPlayer);
     begin
       if Winner = Player1 then
-        fLblCellIndicator.Caption := 'Player 1 Wins!'
+        Self.fLblCellIndicator.Caption := 'Player 1 Wins !'
       else
-        fLblCellIndicator.Caption := 'Player 2 Wins!';
+        fLblCellIndicator.Caption := 'Player 2 Wins !';
+      
+      fLblCellIndicator.Font.Color := clRed;
+      Self.fLblCellIndicator.BringToFront;
+      Self.fLblCellIndicator.Left := (Self.ClientWidth div 2) - 145;
+      Self.fLblCellIndicator.Top := (Self.ClientHeight div 2) - 20;
+      Self.fLblCellIndicator.Font.Size := 24;
+      Self.fLblCellIndicator.Top := (Self.ClientHeight div 2) - 20;
+      Self.fBoardOutline.BringToFront;
     end;
 
     function TChessForm.GetPlayerByColor(Color : TColor) : TChessPlayer;
