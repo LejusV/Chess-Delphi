@@ -1,4 +1,10 @@
-﻿unit Chess;
+﻿//// Projet "Chess" Réalisé par Jules Vandeputte Alias LejusVDP dans le cadre du cours de Production d'Applications de DUT
+//// Je suis désolé de la longueur du fichier (Vive la balise $REGION), j'ai essayé au maximum de regrouper le code répété en une méthode appelée et de combiner des tests logiques plutôt que de les découper en 6 if else
+//// La fonction du Pion fonctionnant en prenant en compte la Direction de celui-ci aurait été 2 fois plus longue sans la variable _direction qui évite les tests de la couleur du pion et permet un calcul global.
+//// Bonne Lecture et bon jeu !
+//// Jules V.
+
+unit Chess;
 
 interface
 
@@ -59,7 +65,7 @@ interface
       procedure DoOnClick(Sender: TObject);
       constructor Create(Owner : TComponent; Color : TColor); // Constructeur Personalisé appelant le constructeur Create(Owner : TComponent)
       procedure GetPossibleMoves(Board : TChessBoard; PossibleMoves : TList<TChessCell>); virtual; abstract;// Retourne la liste des cellules de déplacement possibles pour la pièce
-      procedure Move(CellTag : Integer); // Déplacement de la pièce
+      procedure Move(CellTag : Integer); virtual; // Déplacement de la pièce
     end;
   {$ENDREGION}
   
@@ -71,6 +77,7 @@ interface
       { Déclarations publiques }
       constructor Create(Owner : TComponent; Color : TColor); // Constructeur
       procedure GetPossibleMoves(Board : TChessBoard; PossibleMoves : TList<TChessCell>); override; // Retourne la liste des cellules de déplacement possibles pour la pièce
+      procedure Move(CellTag : Integer); override; // Déplacement de la pièce
     end;
   {$ENDREGION}
 
@@ -169,11 +176,11 @@ interface
       function GetPlayerByColor(Color : TColor) : TChessPlayer; // Getter du joueur par la couleur de ses pions
     strict private
       { D�clarations priv�es }
-      fLblCellIndicator: TLabel; // Label indiquant les coordonnées de la cellule sélectionnée
+      fLblCellIndicator: TLabel; // TLabel pour le nom du joueur dont c'est le tour (et l'échec de son Roi)
       fBoard: TChessBoard; // Plateau de jeu
       fBoardOutline: TShape; // Contour du plateau
-      fFocusedPiece : TChessPiece;
-      fPlayer1, fPlayer2 : TChessPlayer; // Joueurs
+      fFocusedPiece : TChessPiece; // Pièce sélectionnée (peut être nulle)
+      fPlayer1, fPlayer2 : TChessPlayer; // Les 2 Joueurs
     public
       { D�clarations publiques }
       property Board: TChessBoard read fBoard ; // Accès au plateau de jeu
@@ -446,8 +453,8 @@ implementation
     procedure TChessPawn.GetPossibleMoves(Board : TChessBoard; PossibleMoves : TList<TChessCell>);
     var
       _direction : Integer;
-      i : Integer;
     begin
+      _direction := 0;
       if PossibleMoves <> nil then
       begin
         if Self.fColor = clWhite then
@@ -471,10 +478,12 @@ implementation
           begin
             // Si une pièce est sur la case devant à droite ('devant' variant selon la direction)
             if Board[Self.Cell.Tag + 8 * _direction + 1].piece <> nil then
+            begin
               // Si cette pièce est de la couleur opposée
               if Board[Self.Cell.Tag + 8 * _direction + 1].piece.Color <> Self.fColor then
                 // Il peut manger cette pièce
                 PossibleMoves.Add(Board[Self.Cell.Tag + 8 * _direction + 1]);
+            end;
 
           end;
 
@@ -489,16 +498,53 @@ implementation
                 PossibleMoves.Add(Board[Self.Cell.Tag + 8 * _direction - 1]);
           end;
         end;
+      end
+      else
+        Exception.Create('TChessPawn: PossibleMoves is nil');
+    end;
+
+    // Méthode overrite Move pour le Pion qui rajoute un test de promotion en Dame à la méthode parente
+    procedure TChessPawn.Move(CellTag : Integer);
+    var
+      _newQueen : TChessQueen;
+    begin
+      // On appelle le code parent qu'on ne modifie pas
+      inherited Move(CellTag);
+      // Si le pion est arrivé au bout du plateau (selon sa couleur)
+      if (Self.fColor = clWhite) then
+      begin
+        if (Self.Cell.Tag div 8 = 0) then
+        begin
+          _newQueen := TChessQueen.Create(ChessForm, clWhite); // Création d'une nouvelle Dame
+          _newQueen.Cell := ChessForm.Board[CellTag]; // On lui affecte la case du pion
+          ChessForm.Board[CellTag].Piece := _newQueen; // On affecte la Dame à la case
+          // Alignement visuel
+          ChessForm.Board[CellTag].Piece.Left := ChessForm.Board[CellTag].Left + 3;
+          ChessForm.Board[CellTag].Piece.Top := ChessForm.Board[CellTag].Top + 3;
+          ChessForm.Player1.Queens.Add(_newQueen); // Ajout à la liste des Dames du joueur 1
+          Self.Free; // On détruit le pion
+        end;
+      end
+      else if (Self.fColor = clBlack) then
+      begin
+        if (Self.Cell.Tag div 8 = 7) then
+        begin
+          _newQueen := TChessQueen.Create(ChessForm, clBlack);
+          _newQueen.Cell := ChessForm.Board[CellTag];
+          ChessForm.Board[CellTag].Piece := _newQueen;
+          ChessForm.Board[CellTag].Piece.Left := ChessForm.Board[CellTag].Left + 3;
+          ChessForm.Board[CellTag].Piece.Top := ChessForm.Board[CellTag].Top + 3;
+          ChessForm.Player2.Queens.Add(_newQueen);
+          Self.Free;
+        end;
       end;
-      // Vérification pour le développement
-      for i := 0 to PossibleMoves.Count - 1 do
     end;
     
   {$ENDREGION}
   
   {$REGION 'TChessRook Methods'}
     { TChessRook }
-  
+    // Constructeur de la classe TChessRook (Tour)
     constructor TChessRook.Create(Owner : TComponent; Color : TColor);
     begin
       inherited Create(Owner, Color);
@@ -508,7 +554,7 @@ implementation
         Self.Picture.LoadFromFile('../../img/Pieces/Black/BRook.png');
     end;
   
-  
+    // Méthode overrite GetPossibleMoves pour la Tour qui vérifie les cases dans 4 directions (haut, bas, gauche, droite)
     procedure TChessRook.GetPossibleMoves(Board : TChessBoard; PossibleMoves : TList<TChessCell>);
     begin
       if PossibleMoves <> nil then
@@ -532,15 +578,16 @@ implementation
         CheckPossibleMovesOnStraightLine(PossibleMoves, Self.Cell.Tag, 1, ((Self.Cell.Tag div 8) + 1) * 8 - 1 );
           // Décrémentation de 1 entre chaque case pour atteindre celle juste à gauche
           // Dernière case à vérifier = Numéro (de 0 à 7) de la ligne du dessous * nombre de cases dans une ligne - 1
-      end;
+      end
+      else
+        Exception.Create('TChessRook: PossibleMoves is nil');
     end;
   
   {$ENDREGION}
   
-
   {$REGION 'TChessKnight Methods'}
     { TChessRook }
-  
+    // Constructeur de la classe TChessKnight (Cavalier)
     constructor TChessKnight.Create(Owner : TComponent; Color : TColor);
     begin
       inherited Create(Owner, Color);
@@ -550,10 +597,8 @@ implementation
         Self.Picture.LoadFromFile('../../img/Pieces/Black/BKnight.png');
     end;
   
-  
+    // Méthode overrite GetPossibleMoves pour le Cavalier qui vérifie les cases à une distance de 2 sur un axe et 1 sur l'autre
     procedure TChessKnight.GetPossibleMoves(Board : TChessBoard; PossibleMoves : TList<TChessCell>);
-    var
-      i : Integer;
     begin
       if PossibleMoves <> nil then
       begin
@@ -589,7 +634,9 @@ implementation
         if ((Self.Cell.Tag mod 8) > 0) and (Self.Cell.Tag - 16 - 1 >= 0)
           and not ((Board[Self.Cell.Tag - 16 - 1].Piece <> nil) and (Board[Self.Cell.Tag - 16 - 1].Piece.Color = Self.fColor)) then
           PossibleMoves.Add(Board[Self.Cell.Tag - 16 - 1]);
-      end;
+      end
+      else
+        Exception.Create('TChessKnight: PossibleMoves is nil');
     end;
   
   {$ENDREGION}
@@ -644,7 +691,9 @@ implementation
         CheckPossibleMovesOnStraightLine(PossibleMoves, Self.Cell.Tag, 9, i);
           // Décrémentation de 9 entre chaque case pour atteindre celle juste en haut à gauche
           // Dernière case à vérifier = Case colonne de la pièce et 1ère ligne - numéro de la ligne de la pièce
-      end;
+      end
+      else
+        Exception.Create('TChessBishop: PossibleMoves is nil');
     end;
   
   {$ENDREGION}
@@ -698,7 +747,9 @@ implementation
         if ((Self.Cell.Tag mod 8) > 0) and (Self.Cell.Tag - 8 - 1 >= 0)
           and not ((Board[Self.Cell.Tag - 8 - 1].Piece <> nil) and (Board[Self.Cell.Tag - 8 - 1].Piece.Color = Self.fColor)) then
           PossibleMoves.Add(Board[Self.Cell.Tag - 8 - 1]);
-      end;
+      end
+      else
+        Exception.Create('TChessKing: PossibleMoves is nil');
     end;
   
   {$ENDREGION}
@@ -773,18 +824,21 @@ implementation
         CheckPossibleMovesOnStraightLine(PossibleMoves, Self.Cell.Tag, 9, i);
           // Décrémentation de 9 entre chaque case pour atteindre celle juste en haut à gauche
           // Dernière case à vérifier = Case colonne de la pièce et 1ère ligne - numéro de la ligne de la pièce
-      end;
+      end
+      else
+        Exception.Create('TChessQueen: PossibleMoves is nil');
     end;
   
   {$ENDREGION}
 
   {$REGION 'TChessPlayer Methods'}
     { TChessPlayer }
-
+    // Constructeur de la classe TChessPlayer (Joueur de la partie)
     constructor TChessPlayer.Create(Owner : TComponent; Color : TColor; Name : String);
     var
       i : Integer;
     begin
+      // Initialisation des attributs généraux
       Self.fColor := Color;
       Self.fIsTurn := False;
       Self.fName := Name;
@@ -795,28 +849,33 @@ implementation
       Self.fProfilePicture.Center := True;
       Self.ProfilePicture.Parent := ChessForm;
 
-      
-
+      // Initialisation des attributs la liste des pièces
       fPawns := TList<TChessPawn>.Create;
 
       fRooks := TList<TChessRook>.Create;
+      // Ajout de 2 Tours
       fRooks.Add(TChessRook.Create(ChessForm, Color));
       fRooks.Add(TChessRook.Create(ChessForm, Color));
 
       fKnights := TList<TChessKnight>.Create;
+      // Ajout de 2 Cavaliers
       fKnights.Add(TChessKnight.Create(ChessForm, Color));
       fKnights.Add(TChessKnight.Create(ChessForm, Color));
 
       fBishops := TList<TChessBishop>.Create;
+      // Ajout de 2 Fous
       fBishops.Add(TChessBishop.Create(ChessForm, Color));
       fBishops.Add(TChessBishop.Create(ChessForm, Color));
 
       fQueens := TList<TChessQueen>.Create;
+      // Ajout d'une Reine
       fQueens.Add(TChessQueen.Create(ChessForm, Color));
 
+      // Ajout d'un Roi
       fKing := TChessKing.Create(ChessForm, Color);
 
-      if Color = clWhite then
+      // Organistion des pièces sur le plateau selon la couleur du joueur
+      if Self.fColor = clWhite then
       begin
         Self.fProfilePicture.Picture.LoadFromFile('../../img/player2.png');
         Self.fProfilePicture.Left := 0;
@@ -824,13 +883,16 @@ implementation
 
         for i := 0 to 7 do
         begin
+          // Ajout des 8 pions
           fPawns.Add(TChessPawn.Create(ChessForm, Color));
+          // Les 8 pions blancs prennent toute la 7ème ligne
           ChessForm.Board[48 + i].Piece := fPawns[i];
           fPawns[i].Cell := ChessForm.Board[48 + i];
           fPawns[i].Left := fPawns[i].Cell.Left + 3;
           fPawns[i].Top := fPawns[i].Cell.Top + 3;
         end;
 
+        // Les 2 Tours blanches prennent les extrémités de la 1ère ligne
         ChessForm.Board[56].Piece := fRooks[0];
         fRooks[0].Cell := ChessForm.Board[56];
         ChessForm.Board[63].Piece := fRooks[1];
@@ -840,6 +902,7 @@ implementation
         fRooks[1].Left := fRooks[1].Cell.Left + 3;
         fRooks[1].Top := fRooks[1].Cell.Top + 3;
         
+        // Les 2 Cavaliers blancs prennent les 2ème cases les + extérieures de la 1ème ligne
         ChessForm.Board[57].Piece := fKnights[0];
         fKnights[0].Cell := ChessForm.Board[57];
         ChessForm.Board[62].Piece := fKnights[1];
@@ -849,6 +912,7 @@ implementation
         fKnights[1].Left := fKnights[1].Cell.Left + 3;
         fKnights[1].Top := fKnights[1].Cell.Top + 3;
 
+        // Les 2 Fous blancs prennent les 3ème cases les + extérieures de la 1ème ligne
         ChessForm.Board[58].Piece := fBishops[0];
         fBishops[0].Cell := ChessForm.Board[58];
         ChessForm.Board[61].Piece := fBishops[1];
@@ -858,18 +922,21 @@ implementation
         fBishops[1].Left := fBishops[1].Cell.Left + 3;
         fBishops[1].Top := fBishops[1].Cell.Top + 3;
 
+        // La Reine blanche prend la case de gauche la plus intérieure de la 1ère ligne
         ChessForm.Board[59].Piece := fQueens[0];
         fQueens[0].Cell := ChessForm.Board[59];
         fQueens[0].Left := fQueens[0].Cell.Left + 3;
         fQueens[0].Top := fQueens[0].Cell.Top + 3;
         
+        // Le Roi blanc prend la case de droite la plus intérieure de la 1ère ligne
         ChessForm.Board[60].Piece := fKing;
         fKing.Cell := ChessForm.Board[60];
         fKing.Left := fKing.Cell.Left + 3;
         fKing.Top := fKing.Cell.Top + 3;
 
       end
-      else if Color = clBlack then
+      // de même pour les pièces noires
+      else if Self.fColor = clBlack then
       begin
         Self.fProfilePicture.Picture.LoadFromFile('../../img/player1.png');
         Self.fProfilePicture.Left := 864 - Self.ProfilePicture.Width;
@@ -935,15 +1002,18 @@ implementation
       end;
     end;
 
+    // Fonction renvoyant un booléen selon si le Roi du joueur est en échec ou pas
     function TChessPlayer.IsKingChecked(Opponent : TChessPlayer): Boolean;
     var 
       i : Integer;
       _possibleMovesOfPlayer : TList<TChessCell>;
     begin
+      Result := False;
+      // On ne sait jamais
       if Self.fKing <> nil then
       begin
         _possibleMovesOfPlayer := TList<TChessCell>.Create;
-        Result := False;
+        // Est-ce qu'un Pion peut prendre le Roi ?
         if Opponent.fPawns <> nil then
         begin
           for i := 0 to Opponent.fPawns.Count - 1 do
@@ -957,6 +1027,7 @@ implementation
             _possibleMovesOfPlayer.Clear;
           end;
         end;
+        // Est-ce qu'une Tou peut prendre le Roi ?
         if Opponent.fRooks <> nil then
         begin
           for i := 0 to Opponent.fRooks.Count - 1 do
@@ -970,6 +1041,7 @@ implementation
             _possibleMovesOfPlayer.Clear;
           end;
         end;
+        // Est-ce qu'un cavalier peut prendre le Roi ?
         if Opponent.fKnights <> nil then
         begin
           for i := 0 to Opponent.fKnights.Count - 1 do
@@ -983,6 +1055,7 @@ implementation
             _possibleMovesOfPlayer.Clear;
           end;
         end;
+        // Est-ce qu'un Fou peut prendre le Roi ?
         if Opponent.fBishops <> nil then
         begin
           for i := 0 to Opponent.fBishops.Count - 1 do
@@ -996,6 +1069,7 @@ implementation
             _possibleMovesOfPlayer.Clear;
           end;
         end;
+        // Est-ce qu'une Reine peut prendre le Roi ?
         if Opponent.fQueens <> nil then
         begin
           for i := 0 to Opponent.fQueens.Count - 1 do
@@ -1009,6 +1083,10 @@ implementation
             _possibleMovesOfPlayer.Clear;
           end;
         end;
+        // Est-ce qu'un Roi peut prendre le Roi ?
+        // Oui, c'est techniquement impossible car implquant que l'autre Roi est aussi en échec.
+        // Mais le Mat n'est pas encore implémenté car vraiment trop fastidieux.
+        // Peut-être dans la version 132.
         if Opponent.fKing <> nil then
         begin
           Opponent.fKing.GetPossibleMoves(ChessForm.Board, _possibleMovesOfPlayer);
@@ -1026,7 +1104,7 @@ implementation
 
   {$REGION 'TChessForm Methods'}
     { TChessForm }
-    
+    // Constructeur de la classe TChessForm (Fenêtre principale du Chess)
     constructor TChessForm.Create(Owner : TComponent);
     begin
       inherited Create(Owner);
@@ -1046,6 +1124,7 @@ implementation
       PixelsPerInch := 64;
     end;    
     
+    // Procédure de destruction du plateau entier appelée lors de la destruction de la fenêtre principale
     procedure TChessForm.DestroyBoard(Sender: TObject);
     var
       i : Integer;
@@ -1066,6 +1145,7 @@ implementation
         Player1.Pawns[i].Free;
       Player1.Pawns.Free;
       Player1.King.Free;
+
       for i := 0 to Player2.Queens.Count - 1 do
         Player2.Queens[i].Free;
       Player2.Queens.Free;
@@ -1081,15 +1161,24 @@ implementation
       for i := 0 to Player2.Pawns.Count - 1 do
         Player2.Pawns[i].Free;
       Player2.Pawns.Free;
+      Player2.King.Free;
+
       for i := 0 to 63 do
         fBoard[i].Free;
+      
+      Player1.Free;
+      Player2.Free;
+      
+      Self.fLblCellIndicator.Free;
+      Self.fBoardOutline.Free;
     end;
 
+    // Procédure de génération du plateau entier appelée lors de la création de la fenêtre principale
     procedure TChessForm.GenerateBoard(Sender: TObject);
     var
       _isWhite : Boolean;
     begin
-    
+      // TShape sans corps, avec contour pour rendre plus joli le contour du plateau
       fBoardOutline := TShape.Create(Self);
       fBoardOutline.Parent := Self;
       fBoardOutline.Left := 45;
@@ -1101,6 +1190,7 @@ implementation
       fBoardOutline.Pen.Color := RGB(66, 29, 0);
       fBoardOutline.Pen.Width := 3;
 
+      // Label pour le nom du joueur dont c'est le tour (et l'échec de son Roi)
       fLblCellIndicator:= TLabel.Create(Self);
       fLblCellIndicator.Parent := Self;
       fLblCellIndicator.Left := 1;
@@ -1151,6 +1241,7 @@ implementation
 
     function TChessForm.GetPlayerByColor(Color : TColor) : TChessPlayer;
     begin
+      Result := nil;
       if Color = clWhite then
         Result := fPlayer1
       else if Color = clBlack then
