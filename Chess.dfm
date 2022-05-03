@@ -12,7 +12,6 @@ object ChessForm: TChessForm
   Font.Style = []
   OldCreateOrder = False
   OnCreate = GenerateBoard
-  OnResize = FormResize
   PixelsPerInch = 64
   TextHeight = 13
 end

@@ -6,7 +6,7 @@ interface
   uses
     Winapi.Windows, Winapi.Messages, System.SysUtils, System.Variants, System.Classes, System.Generics.Collections, System.Math, Vcl.Graphics,
     Vcl.Controls, Vcl.Forms, Vcl.Dialogs, Vcl.StdCtrls, Vcl.ExtCtrls,
-  Vcl.Imaging.pngimage;
+    Vcl.Imaging.pngimage;
 
 {$ENDREGION}
 
@@ -135,6 +135,7 @@ interface
     strict private
       fBishops : TList<TChessBishop>;
       fColor : TColor;
+      fIsTurn : Boolean;
       fKing : TChessKing;
       fKnights : TList<TChessKnight>;
       fName : String;
@@ -145,8 +146,10 @@ interface
     public
       { Déclarations publiques }
       constructor Create(Owner : TComponent; Color : TColor; Name : String);
+      function IsKingChecked(Opponent : TChessPlayer): Boolean;
       property Bishops : TList<TChessBishop> read fBishops;
       property Color : TColor read fColor;
+      property IsTurn : Boolean read fIsTurn write fIsTurn;
       property King : TChessKing read fKing;
       property Knights : TList<TChessKnight> read fKnights;
       property Name : String read fName;
@@ -162,8 +165,8 @@ interface
     // Classe Fenêtre de Jeu dérivée de TForm
     TChessForm = class(TForm)
       procedure GenerateBoard(Sender: TObject); // Génération du plateau
-      procedure DestroyBoard(Sender: TObject);
-    procedure FormResize(Sender: TObject); // Destruction du plateau
+      procedure DestroyBoard(Sender: TObject); // Destruction du plateau
+      function GetPlayerByColor(Color : TColor) : TChessPlayer; // Getter du joueur par la couleur de ses pions
     strict private
       { D�clarations priv�es }
       fLblCellIndicator: TLabel; // Label indiquant les coordonnées de la cellule sélectionnée
@@ -179,6 +182,7 @@ interface
       property Player1 : TChessPlayer read fPlayer1; // Joueur 1
       property Player2 : TChessPlayer read fPlayer2; // Joueur 2
       constructor Create(Owner : TComponent); override; // Constructeur
+      procedure GameOver(Winner : TChessPlayer); // Fonction de fin de partie
     end;
   {$ENDREGION}
 {$ENDREGION}
@@ -236,6 +240,8 @@ implementation
   
   {$REGION 'TChessPiece Methods'}
     { TChessPiece }
+
+    // Selectionne la pièce appelante
     procedure TChessPiece.Select;
     var
       i : Integer;
@@ -249,14 +255,16 @@ implementation
       begin
         for i := 0 to Self.fPossibleMoves.Count - 1 do
         begin
+          // Aspect visuel des cellules de mouvements possibles
           Self.fPossibleMoves[i].Brush.Style := bsDiagCross;
         end;
       end;
-      // Sélection de la pièce cliquée
+      // Modification des variables indiquant quelle pièce est sélectionnée
       ChessForm.FocusedPiece := Self;
       Self.fIsFocused := True;
     end;
 
+    // Déselectionne la pièce appelante
     procedure TChessPiece.Unselect;
     var
       i : Integer;
@@ -273,6 +281,7 @@ implementation
       Self.fIsFocused := False;
     end;
 
+    // Au clic sur une pièce, choisit l'opération à effectuer selon le contexte
     procedure TChessPiece.DoOnClick(Sender: TObject);
     begin
       // Si la pièce cliquée n'est pas sélectionnée
@@ -295,21 +304,24 @@ implementation
           else
           begin
             ChessForm.FocusedPiece.Unselect;
-            Self.Select;
+            // Si la pièce cliquée est de la couleur du joueur dont c'est le tour
+            if ChessForm.GetPlayerByColor(Self.fColor).IsTurn = True then
+              Self.Select;
           end;
         end
         // Sinon (Si aucune pièce n'est sélectionnée)
         else
-          Self.Select;
+        begin
+          // Si la pièce cliquée est de la couleur du joueur dont c'est le tour
+          if ChessForm.GetPlayerByColor(Self.fColor).IsTurn = True then
+            Self.Select;
+        end;
       end
       else
         Self.Unselect;
-      if ChessForm.FocusedPiece <> nil then
-        ChessForm.CellIndicator.Caption := IntToStr(ChessForm.FocusedPiece.Cell.Tag) + ' ' + IntToStr(Ord(ChessForm.FocusedPiece.fIsFocused))
-      else
-        ChessForm.CellIndicator.Caption := Self.fIsFocused.ToString;
     end;
 
+    // Constructeur de la classe TChessPiece
     constructor TChessPiece.Create(Owner : TComponent; Color : TColor);
     begin
       inherited Create(Owner);
@@ -323,13 +335,18 @@ implementation
       Self.Center := True;
     end; 
     
-    
-    procedure TChessPiece.CheckPossibleMovesOnStraightLine(possibleMoves : TList<TChessCell>; cellTag : Integer; tagDiff2Cells : Integer; tagLastCell : Integer);
     // Vérifie les mouvements possibles sur un pattern régulier
     // (in/dé.crémentation de i par un nombre constant en paramètre tagDiff2Cells)
+    procedure TChessPiece.CheckPossibleMovesOnStraightLine(
+      possibleMoves : TList<TChessCell>;
+      cellTag : Integer;
+      tagDiff2Cells : Integer;
+      tagLastCell : Integer
+    );
     var
       i : Integer;
     begin
+      // On commence à la première cellule de la ligne juste après la cellule de départ
       i := cellTag + tagDiff2Cells;
       if possibleMoves <> nil then
       begin
@@ -365,10 +382,51 @@ implementation
       Self.Cell.Piece := nil;
       Self.Cell := ChessForm.Board[CellTag];
       if (ChessForm.Board[CellTag].Piece <> nil) and (Self.Cell.Piece <> Self) then
+        if Self.Cell.Piece = ChessForm.Player1.King then
+          ChessForm.GameOver(ChessForm.Player2)
+        else if Self.Cell.Piece = ChessForm.Player2.King then
+          ChessForm.GameOver(ChessForm.Player1);
         ChessForm.Board[CellTag].Piece.Free;
       Self.Cell.Piece := Self;
       Self.Left := Self.cell.Left + (Self.cell.Width - Self.Width) div 2;
       Self.Top := Self.cell.Top + (Self.cell.Height - Self.Height) div 2;
+      if Self.fColor = clWhite then
+      begin
+        ChessForm.Player1.IsTurn := False;
+        ChessForm.Player2.IsTurn := True;
+        // Si le joueur 2 est en échec
+        if ChessForm.Player2.IsKingChecked(ChessForm.Player1) then
+        begin
+          ChessForm.CellIndicator.Caption := 'Player 2 (Checked)';
+          ChessForm.CellIndicator.Color := clRed;
+          ChessForm.CellIndicator.Left := ChessForm.Width - 168;
+          ChessForm.CellIndicator.Top := 1;
+        end
+        else
+        begin
+          ChessForm.CellIndicator.Caption := 'Player 2';
+          ChessForm.CellIndicator.Color := clWhite;
+          ChessForm.CellIndicator.Left := ChessForm.Width - 84;
+          ChessForm.CellIndicator.Top := 1;
+        end;
+      end
+      else if Self.fColor = clBlack then
+      begin
+        ChessForm.Player1.IsTurn := True;
+        ChessForm.Player2.IsTurn := False;
+        ChessForm.CellIndicator.Caption := 'Player 1';
+        ChessForm.CellIndicator.Color := clWhite;
+        ChessForm.CellIndicator.Left := 1;
+        ChessForm.CellIndicator.Top := ChessForm.ClientHeight - ChessForm.CellIndicator.Height - 1;
+        // Si le roi du joueur 1 est en échec
+        if ChessForm.Player1.IsKingChecked(ChessForm.Player2) then
+        begin
+          ChessForm.CellIndicator.Caption := 'Player 1 (Checked)';
+          ChessForm.CellIndicator.Color := clRed;
+        end;
+      end
+      else
+        raise Exception.Create('Erreur : Couleur de la pièce non définie');
     end;
     
   {$ENDREGION}
@@ -396,6 +454,9 @@ implementation
           _direction := -1
         else if Self.fColor = clBlack then
           _direction := 1;
+
+        if (((Self.Cell.Tag + _direction * 16) div 8 = 3) and (_direction = 1)) or (((Self.Cell.Tag + _direction * 16) div 8 = 4) and (_direction = -1)) then
+          PossibleMoves.Add(ChessForm.Board[Self.Cell.Tag + _direction * 16]);
         
         // Si le pion n'est pas arrivé au bout du plateau (selon sa direction)
         if (Self.Cell.Tag + 8 * _direction >= 0) and (Self.Cell.Tag + 8 * _direction <= 63) then
@@ -725,6 +786,7 @@ implementation
       i : Integer;
     begin
       Self.fColor := Color;
+      Self.fIsTurn := False;
       Self.fName := Name;
       Self.fProfilePicture := TImage.Create(ChessForm);
       Self.ProfilePicture.Height := 32;
@@ -760,13 +822,13 @@ implementation
         Self.fProfilePicture.Left := 0;
         Self.fProfilePicture.Top := 0;
 
-        for i := 3 to 4 do
+        for i := 0 to 7 do
         begin
           fPawns.Add(TChessPawn.Create(ChessForm, Color));
-          ChessForm.Board[48 + i].Piece := fPawns[i - 3];
-          fPawns[i - 3].Cell := ChessForm.Board[48 + i];
-          fPawns[i - 3].Left := fPawns[i - 3].Cell.Left + 3;
-          fPawns[i - 3].Top := fPawns[i - 3].Cell.Top + 3;
+          ChessForm.Board[48 + i].Piece := fPawns[i];
+          fPawns[i].Cell := ChessForm.Board[48 + i];
+          fPawns[i].Left := fPawns[i].Cell.Left + 3;
+          fPawns[i].Top := fPawns[i].Cell.Top + 3;
         end;
 
         ChessForm.Board[56].Piece := fRooks[0];
@@ -813,13 +875,13 @@ implementation
         Self.fProfilePicture.Left := 864 - Self.ProfilePicture.Width;
         Self.fProfilePicture.Top := 864 - Self.ProfilePicture.Height;
 
-        for i := 3 to 4 do
+        for i := 0 to 7 do
         begin
           fPawns.Add(TChessPawn.Create(ChessForm, Color));
-          ChessForm.Board[8 + i].Piece := fPawns[i - 3];
-          fPawns[i - 3].Cell := ChessForm.Board[8 + i];
-          fPawns[i - 3].Left := fPawns[i - 3].Cell.Left + 3;
-          fPawns[i - 3].Top := fPawns[i - 3].Cell.Top + 3;
+          ChessForm.Board[8 + i].Piece := fPawns[i];
+          fPawns[i].Cell := ChessForm.Board[8 + i];
+          fPawns[i].Left := fPawns[i].Cell.Left + 3;
+          fPawns[i].Top := fPawns[i].Cell.Top + 3;
         end;
 
         ChessForm.Board[0].Piece := fRooks[0];
@@ -872,6 +934,94 @@ implementation
         fKnights[1].Top := 54;
       end;
     end;
+
+    function TChessPlayer.IsKingChecked(Opponent : TChessPlayer): Boolean;
+    var 
+      i : Integer;
+      _possibleMovesOfPlayer : TList<TChessCell>;
+    begin
+      if Self.fKing <> nil then
+      begin
+        _possibleMovesOfPlayer := TList<TChessCell>.Create;
+        Result := False;
+        if Opponent.fPawns <> nil then
+        begin
+          for i := 0 to Opponent.fPawns.Count - 1 do
+          begin
+            Opponent.fPawns[i].GetPossibleMoves(ChessForm.Board, _possibleMovesOfPlayer);
+            if _possibleMovesOfPlayer.Contains(Self.fKing.Cell) then
+            begin
+              Result := True;
+              Exit;
+            end;
+            _possibleMovesOfPlayer.Clear;
+          end;
+        end;
+        if Opponent.fRooks <> nil then
+        begin
+          for i := 0 to Opponent.fRooks.Count - 1 do
+          begin
+            Opponent.fRooks[i].GetPossibleMoves(ChessForm.Board, _possibleMovesOfPlayer);
+            if _possibleMovesOfPlayer.Contains(Self.fKing.Cell) then
+            begin
+              Result := True;
+              Exit;
+            end;
+            _possibleMovesOfPlayer.Clear;
+          end;
+        end;
+        if Opponent.fKnights <> nil then
+        begin
+          for i := 0 to Opponent.fKnights.Count - 1 do
+          begin
+            Opponent.fKnights[i].GetPossibleMoves(ChessForm.Board, _possibleMovesOfPlayer);
+            if _possibleMovesOfPlayer.Contains(Self.fKing.Cell) then
+            begin
+              Result := True;
+              Exit;
+            end;
+            _possibleMovesOfPlayer.Clear;
+          end;
+        end;
+        if Opponent.fBishops <> nil then
+        begin
+          for i := 0 to Opponent.fBishops.Count - 1 do
+          begin
+            Opponent.fBishops[i].GetPossibleMoves(ChessForm.Board, _possibleMovesOfPlayer);
+            if _possibleMovesOfPlayer.Contains(Self.fKing.Cell) then
+            begin
+              Result := True;
+              Exit;
+            end;
+            _possibleMovesOfPlayer.Clear;
+          end;
+        end;
+        if Opponent.fQueens <> nil then
+        begin
+          for i := 0 to Opponent.fQueens.Count - 1 do
+          begin
+            Opponent.fQueens[i].GetPossibleMoves(ChessForm.Board, _possibleMovesOfPlayer);
+            if _possibleMovesOfPlayer.Contains(Self.fKing.Cell) then
+            begin
+              Result := True;
+              Exit;
+            end;
+            _possibleMovesOfPlayer.Clear;
+          end;
+        end;
+        if Opponent.fKing <> nil then
+        begin
+          Opponent.fKing.GetPossibleMoves(ChessForm.Board, _possibleMovesOfPlayer);
+          if _possibleMovesOfPlayer.Contains(Self.fKing.Cell) then
+          begin
+            Result := True;
+            Exit;
+          end;
+          _possibleMovesOfPlayer.Clear;
+        end;
+      end;
+    end;
+
   {$ENDREGION}
 
   {$REGION 'TChessForm Methods'}
@@ -894,7 +1044,7 @@ implementation
       OldCreateOrder := False;
       OnCreate := GenerateBoard;
       PixelsPerInch := 64;
-    end;
+    end;    
     
     procedure TChessForm.DestroyBoard(Sender: TObject);
     var
@@ -935,7 +1085,7 @@ implementation
         fBoard[i].Free;
     end;
 
-procedure TChessForm.GenerateBoard(Sender: TObject);
+    procedure TChessForm.GenerateBoard(Sender: TObject);
     var
       _isWhite : Boolean;
     begin
@@ -953,8 +1103,8 @@ procedure TChessForm.GenerateBoard(Sender: TObject);
 
       fLblCellIndicator:= TLabel.Create(Self);
       fLblCellIndicator.Parent := Self;
-      fLblCellIndicator.Left := 816;
-      fLblCellIndicator.Top := 0;
+      fLblCellIndicator.Left := 1;
+      fLblCellIndicator.Top := Self.ClientHeight - 17;
       fLblCellIndicator.Width := 4;
       fLblCellIndicator.Height := 16;
       fLblCellIndicator.Font.Charset := DEFAULT_CHARSET;
@@ -986,13 +1136,26 @@ procedure TChessForm.GenerateBoard(Sender: TObject);
       Self.fPlayer2 := TChessPlayer.Create(Self, clBlack, 'Player 2');
     
       //if fBoard[8].Piece <> nil then
-        fLblCellIndicator.Caption :=  IntToStr(ChessForm.Width{fBoard[8].Piece.Height});
+      fLblCellIndicator.Caption :=  'White Starts';
+
+      Self.fPlayer1.IsTurn := True;
     end;
 
-  procedure TChessForm.FormResize(Sender: TObject);
-  begin
-    fLblCellIndicator.Caption :=  IntToStr(ChessForm.Width{fBoard[8].Piece.Height});
-  end;
+    procedure TChessForm.GameOver(Winner : TChessPlayer);
+    begin
+      if Winner = Player1 then
+        fLblCellIndicator.Caption := 'Player 1 Wins!'
+      else
+        fLblCellIndicator.Caption := 'Player 2 Wins!';
+    end;
+
+    function TChessForm.GetPlayerByColor(Color : TColor) : TChessPlayer;
+    begin
+      if Color = clWhite then
+        Result := fPlayer1
+      else if Color = clBlack then
+        Result := fPlayer2;
+    end;
 
 {$ENDREGION}
 {$ENDREGION}
