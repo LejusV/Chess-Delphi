@@ -461,17 +461,19 @@ implementation
           _direction := -1
         else if Self.fColor = clBlack then
           _direction := 1;
-
-        if (((Self.Cell.Tag + _direction * 16) div 8 = 3) and (_direction = 1)) or (((Self.Cell.Tag + _direction * 16) div 8 = 4) and (_direction = -1)) then
-          PossibleMoves.Add(ChessForm.Board[Self.Cell.Tag + _direction * 16]);
         
         // Si le pion n'est pas arrivé au bout du plateau (selon sa direction)
         if (Self.Cell.Tag + 8 * _direction >= 0) and (Self.Cell.Tag + 8 * _direction <= 63) then
         begin
           // S'il n'y a pas de pièce devant lui (toujours selon sa direction)
           if Board[Self.Cell.Tag + 8 * _direction].piece = nil then
+          begin
             // Il peut se déplacer d'une case vers l'avant
             PossibleMoves.Add(Board[Self.Cell.Tag + 8 * _direction]);
+
+            if (((Self.Cell.Tag + _direction * 16) div 8 = 3) and (_direction = 1)) or (((Self.Cell.Tag + _direction * 16) div 8 = 4) and (_direction = -1)) then
+              PossibleMoves.Add(ChessForm.Board[Self.Cell.Tag + _direction * 16]);
+          end;
 
           // Si le pion n'est pas sur la colonne toute à droite
           if (Self.Cell.Tag mod 8) < 7 then
