@@ -1,7 +1,7 @@
 object ChessForm: TChessForm
   Left = 0
   Top = 0
-  Caption = 'Chess Game - By LejusVDP'
+  Caption = 'Chess Game - By Jules & Alex'
   ClientHeight = 864
   ClientWidth = 864
   Color = 64
